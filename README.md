@@ -1,16 +1,23 @@
-<p align="center">
-  <img src="docs/images/icon.png" alt="Meeting Brain icon" width="160" height="160">
-</p>
-<h1 align="center">Meeting Brain</h1>
+# <img src="docs/images/icon.png" alt="" width="36" height="36" align="top"> Meeting Brain
 
 <!-- YOUR INTRO HERE: what this is and why you built it, in your words. -->
 
+```text
+[0:00] Mei: 好,我哋開始啦。今個 Saturday 個 market stall,我想 confirm 一下個 menu 先。
+[0:07] Jordan: Sure, I think we keep it to four items, the pineapple bun, the egg tart, milk tea, and one new thing.
+[0:16] Mei: 我覺得個 new item 可以係 matcha egg tart,上次 testing 啲人好鍾意。
+[0:21] Priya: I love that, but can we make enough? Last time we sold out by noon.
+```
+
+That's straight from the pipeline, not hand-edited. It was told there were 3 people, and the names were
+typed in once afterwards. Cantonese and English stay as they were said.
+
 Everything runs on your Mac locally. Recordings, transcripts, voiceprints and notes never leave it.
 
-![Meetings](docs/images/meetings.png)
+*The examples and screenshots use a made-up bakery team (Mei, Jordan, Priya) voiced with macOS
+text-to-speech and run through the real pipeline. No real meeting appears anywhere in this repo.*
 
-*Screenshots use a made-up bakery team (Mei, Jordan, Priya) voiced with macOS text-to-speech and run
-through the real pipeline. No real meeting appears anywhere in this repo.*
+![Meetings](docs/images/meetings.png)
 
 ## What it does
 
