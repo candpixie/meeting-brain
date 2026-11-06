@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meeting Brain</title>
+<style>
+:root {
+  --bg: #f7f5f1; --panel: #ffffff; --ink: #1d1b18; --muted: #77716a; --line: #e7e2da;
+  --accent: #5b4bd6; --accent-soft: #ece9fb; --warn: #b4561b; --warn-soft: #fbeee4; --ok: #2f7a4f;
+  --s0: #5b4bd6; --s1: #c0496b; --s2: #2f7a8a; --s3: #b07a12; --s4: #5d8a2f; --s5: #8a4fb0; --s6: #c0632f; --s7: #4f6ab0;
+  --radius: 10px;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang HK", "Noto Sans HK", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #141312; --panel: #1d1c1a; --ink: #ece8e2; --muted: #9a938a; --line: #2e2c29;
+    --accent: #9d92f5; --accent-soft: #2a2645; --warn: #f0a46d; --warn-soft: #3a281c; --ok: #6fc08f;
+    --s0: #9d92f5; --s1: #f08aa6; --s2: #6cc3d3; --s3: #e5b94f; --s4: #9ccf6a; --s5: #c79af0; --s6: #f0a070; --s7: #8fa6f0; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; line-height: 1.55; }
+a { color: inherit; }
+button { font: inherit; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+  border-radius: 8px; padding: 5px 11px; }
+button:hover { border-color: var(--muted); }
+button:disabled { opacity: .45; cursor: default; }
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+button.ghost { border-color: transparent; background: transparent; color: var(--muted); }
+button.ghost:hover { color: var(--ink); }
+input, select { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 10px; }
+.app { display: grid; grid-template-columns: 200px 1fr; min-height: 100vh; }
+nav { border-right: 1px solid var(--line); padding: 22px 14px; position: sticky; top: 0; height: 100vh; }
+nav h1 { font-size: 15px; margin: 0 8px 18px; letter-spacing: .01em; }
+nav h1 span { color: var(--muted); font-weight: 400; }
+nav a { display: block; padding: 7px 10px; border-radius: 8px; text-decoration: none; color: var(--muted); }
+nav a.on, nav a:hover { background: var(--panel); color: var(--ink); }
+nav .foot { position: absolute; bottom: 18px; left: 22px; right: 14px; font-size: 12px; color: var(--muted); }
+main { padding: 28px 36px 120px; max-width: 1200px; width: 100%; }
+h2 { font-size: 22px; margin: 0 0 4px; font-weight: 650; }
+.sub { color: var(--muted); font-size: 13px; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; }
+.list { display: grid; gap: 10px; margin-top: 18px; }
+.mcard { display: block; text-decoration: none; }
+.mcard:hover { border-color: var(--muted); }
+.mcard .t { font-weight: 600; }
+.pill { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 99px; background: var(--bg);
+  border: 1px solid var(--line); color: var(--muted); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.pill.acc { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.drop { border: 1.5px dashed var(--line); border-radius: var(--radius); padding: 18px; margin-top: 18px; color: var(--muted); }
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.hits { margin-top: 8px; font-size: 13px; color: var(--muted); }
+.hits div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+mark { background: var(--accent-soft); color: var(--accent); border-radius: 3px; padding: 0 2px; }
+
+.mgrid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 26px; margin-top: 20px; align-items: start; }
+.side { position: sticky; top: 20px; display: grid; gap: 14px; max-height: calc(100vh - 140px); overflow: auto; }
+.side h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+.side ul { margin: 0; padding-left: 18px; }
+.side li { margin: 3px 0; }
+.ai { list-style: none; padding: 0 !important; }
+.ai li { display: flex; gap: 8px; align-items: flex-start; }
+.ai li.done span { text-decoration: line-through; color: var(--muted); }
+.spk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.speakers .s { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; gap: 8px; }
+.speakers input { width: 140px; padding: 3px 8px; }
+
+.seg { display: grid; grid-template-columns: 52px 128px minmax(0, 1fr); gap: 10px; padding: 7px 8px; border-radius: 8px; }
+.seg:hover { background: var(--panel); }
+.seg.active { background: var(--accent-soft); }
+.seg .ts { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; padding-top: 3px; cursor: pointer; }
+.seg .ts:hover { color: var(--accent); }
+.seg .who select { border: none; background: transparent; font-weight: 600; font-size: 13px; padding: 2px 0; max-width: 128px; }
+.seg .txt { outline: none; border-radius: 4px; padding: 1px 3px; word-break: break-word; }
+.seg .txt:focus { background: var(--panel); box-shadow: 0 0 0 1.5px var(--accent); }
+.seg .meta { display: flex; gap: 6px; margin-top: 3px; flex-wrap: wrap; }
+.seg .alt { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.hint { font-size: 12px; background: var(--warn-soft); color: var(--warn); border-radius: 6px; padding: 3px 8px; display: flex; gap: 8px; align-items: center; }
+.hint button { font-size: 12px; padding: 1px 7px; }
+.player { position: fixed; bottom: 0; left: 200px; right: 0; background: var(--panel); border-top: 1px solid var(--line);
+  padding: 10px 36px; display: flex; gap: 14px; align-items: center; }
+.player audio { flex: 1; height: 36px; }
+.toast { position: fixed; bottom: 76px; right: 24px; background: var(--ink); color: var(--bg); padding: 9px 14px;
+  border-radius: 9px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.on { opacity: 1; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 18px; }
+.stats .card b { display: block; font-size: 20px; }
+.empty { color: var(--muted); padding: 30px 0; }
+table { width: 100%; border-collapse: collapse; }
+td { padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  nav { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--line); display: flex; gap: 4px; padding: 10px 16px; flex-wrap: wrap; }
+  nav h1 { margin: 6px 10px 6px 0; } nav .foot { display: none; }
+  main { padding: 20px 16px 120px; }
+  .mgrid { grid-template-columns: 1fr; } .side { position: static; max-height: none; }
+  .seg { grid-template-columns: 44px 1fr; } .seg .txtwrap { grid-column: 1 / -1; }
+  .player { left: 0; padding: 10px 16px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <nav>
+    <h1>Meeting Brain <span>· local</span></h1>
+    <a href="#/" data-nav="meetings">Meetings</a>
+    <a href="#/memos" data-nav="memos" id="nav-memos" hidden>Voice Memos</a>
+    <a href="#/actions" data-nav="actions">Action items</a>
+    <a href="#/people" data-nav="people">People</a>
+    <a href="#/vocab" data-nav="vocab">Vocab</a>
+    <a href="#/storage" data-nav="storage">Settings</a>
+    <div class="foot" id="foot"></div>
+  </nav>
+  <main id="main"></main>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const api = async (path, opts = {}) => {
+  const r = await fetch("/api" + path, opts.body && !(opts.body instanceof FormData)
+    ? {...opts, headers: {"Content-Type": "application/json"}, body: JSON.stringify(opts.body)} : opts);
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+  return r.json();
+};
+const post = (p, body) => api(p, {method: "POST", body});
+const ts = t => { t = Math.floor(t || 0); const h = Math.floor(t / 3600), m = Math.floor(t / 60) % 60, s = t % 60;
+  return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(s).padStart(2, "0"); };
+const day = t => new Date(t * 1000).toLocaleDateString(undefined, {month: "short", day: "numeric", year: "numeric"});
+const toast = msg => { const t = $("#toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("on"), 2600); };
+const color = i => `var(--s${i % 8})`;
+let LANGS = null;
+const langs = async () => LANGS ??= await api("/langs");
+const langName = code => (LANGS?.presets.find(p => p.code === code) || {}).name || "";
+const langOptions = (sel) => LANGS.presets.map(p =>
+  `<option value="${p.code}"${p.code === sel ? " selected" : ""}>${esc(p.name)}</option>`).join("");
+let poll = null;
+
+async function route() {
+  clearTimeout(poll);
+  await langs().catch(() => null);
+  const h = location.hash.slice(1) || "/";
+  const [, page, id] = h.split("/");
+  document.querySelectorAll("nav a").forEach(a => a.classList.toggle("on",
+    a.dataset.nav === ({"": "meetings", m: "meetings"}[page] ?? page)));
+  try {
+    if (page === "m") await meetingPage(+id);
+    else if (page === "actions") await actionsPage();
+    else if (page === "people") await peoplePage();
+    else if (page === "vocab") await vocabPage();
+    else if (page === "storage") await storagePage();
+    else if (page === "memos") await memosPage();
+    else await meetingsPage();
+  } catch (e) { $("#main").innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+window.addEventListener("hashchange", route);
+
+// ---------------- voice memos (only inside the Mac app, which can read them) ----------------
+const native = window.webkit?.messageHandlers?.mb;
+if (native) $("#nav-memos").hidden = false;
+const pending = {};
+let nextId = 1;
+window.mbReply = (id, v) => { pending[id]?.(v); delete pending[id]; };
+const ask = (type, extra = {}) => new Promise(res => { const id = nextId++; pending[id] = res; native.postMessage({id, type, ...extra}); });
+const mins = s => Math.max(1, Math.round(s / 60)) + " min";
+
+async function memosPage() {
+  if (!native) { $("#main").innerHTML = `<div class="empty">Open the Meeting Brain app to see your Voice Memos here.</div>`; return; }
+  $("#main").innerHTML = `<h2>Voice Memos</h2><div class="sub">Reading Voice Memos…</div>`;
+  const [r, src] = await Promise.all([ask("list"), api("/sources")]);
+  if (r.blocked) {
+    $("#main").innerHTML = `<h2>Voice Memos</h2>
+      <div class="card" style="margin-top:18px"><b>macOS is hiding your Voice Memos from Meeting Brain.</b>
+      <div class="sub" style="margin:6px 0 12px">Turn on Meeting Brain under Full Disk Access, then quit and reopen the app. It only reads recordings and never changes or deletes them.</div>
+      <button class="primary" id="grant">Open Full Disk Access settings</button></div>`;
+    $("#grant").onclick = () => ask("privacy");
+    return;
+  }
+  const memos = r.memos;
+  const todo = memos.filter(m => !(m.source in src));
+  $("#main").innerHTML = `
+    <div class="row" style="justify-content:space-between">
+      <div><h2>Voice Memos</h2><div class="sub">${memos.length} recordings · ${memos.length - todo.length} in your brain.
+        ${r.auto ? `New ones over ${r.minMinutes} min are processed automatically.` : "Auto-processing is off (menu bar icon)."}</div></div>
+      <button id="selall">Select all not processed</button>
+    </div>
+    <div class="card" style="margin-top:14px">${memos.length ? `<table>${memos.map((m, i) => {
+      const mid = src[m.source];
+      return `<tr>
+        <td style="width:28px">${mid ? "" : `<input type="checkbox" data-i="${i}">`}</td>
+        <td><b>${esc(m.title || "Untitled")}</b></td>
+        <td class="sub">${day(m.date)} ${new Date(m.date * 1000).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"})}</td>
+        <td class="sub">${mins(m.duration)}</td>
+        <td style="text-align:right">${mid ? `<a href="#/m/${mid}">Open →</a>` : `<button data-one="${i}">Process</button>`}</td></tr>`;
+    }).join("")}</table>` : `<div class="empty">No recordings in Voice Memos on this Mac. If they're on your phone, turn on Voice Memos in iCloud settings on both devices.</div>`}</div>
+    <div class="row" style="margin-top:12px"><button class="primary" id="go" disabled>Process selected</button>
+      <span class="sub" id="est"></span></div>`;
+  const boxes = () => [...document.querySelectorAll("input[data-i]")];
+  const update = () => {
+    const sel = boxes().filter(b => b.checked).map(b => memos[b.dataset.i]);
+    $("#go").disabled = !sel.length;
+    const t = sel.reduce((a, m) => a + m.duration, 0);
+    $("#est").textContent = sel.length ? `${sel.length} selected · ${mins(t)} of audio · roughly ${mins(t * 0.15)} to process, one at a time` : "";
+  };
+  boxes().forEach(b => b.onchange = update);
+  $("#selall").onclick = () => { boxes().forEach(b => b.checked = true); update(); };
+  const run = async list => {
+    const q = await ask("process", {paths: list.map(m => m.path)});
+    toast(`${q.queued} sent. They show up under Meetings as they finish.`);
+    setTimeout(() => location.hash = "#/", 1200);
+  };
+  $("#go").onclick = () => run(boxes().filter(b => b.checked).map(b => memos[b.dataset.i]));
+  document.querySelectorAll("button[data-one]").forEach(b => b.onclick = () => run([memos[b.dataset.one]]));
+}
+
+// ---------------- meetings ----------------
+let query = "";
+async function meetingsPage() {
+  const ms = await api("/meetings?q=" + encodeURIComponent(query));
+  const busy = ms.some(m => ["queued", "processing"].includes(m.status));
+  $("#main").innerHTML = `
+    <div class="row" style="justify-content:space-between">
+      <div><h2>Meetings</h2><div class="sub">${ms.length} ${query ? "matching" : "recorded"}</div></div>
+      <input id="q" placeholder="Search everything anyone said…" value="${esc(query)}" style="width:min(340px,100%)">
+    </div>
+    <div class="drop" id="drop">
+      <div class="row">
+        <b style="color:var(--ink)">Add a recording</b>
+        <span>drop an audio or video file here, or</span>
+        <label><button onclick="$('#file').click()">choose file</button></label>
+        <input type="file" id="file" accept="audio/*,video/*" hidden>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <input id="utitle" placeholder="Title (optional)">
+        <select id="uengine" title="Whisper handles Cantonese + English mixing best">
+          <option value="whisper">Whisper (best for 中英夾雜)</option>
+          <option value="both">Whisper + SenseVoice compare</option>
+          <option value="sensevoice">SenseVoice (fast preview)</option>
+        </select>
+        <select id="ulang" title="Language people speak in the meeting">${LANGS ? langOptions(LANGS.default) : ""}</select>
+        <input id="uspk" type="number" min="1" max="12" placeholder="# people (optional)" style="width:170px"
+          title="If you know how many people spoke, diarization gets much better">
+      </div>
+    </div>
+    <div class="list">${ms.length ? ms.map(m => `
+      <a class="card mcard" href="#/m/${m.id}">
+        <div class="row" style="justify-content:space-between">
+          <span class="t">${esc(m.title)}</span>
+          <span class="sub">${day(m.created)} · ${ts(m.duration)}</span>
+        </div>
+        <div class="row" style="margin-top:6px">
+          ${m.status !== "done" ? `<span class="pill ${m.status === "error" ? "warn" : "acc"}">${esc(m.status === "error" ? "error" : m.status + "…")}</span>` : ""}
+          ${m.people.map((p, i) => `<span class="spk"><span class="dot" style="background:${color(i)}"></span>${esc(p)}</span>`).join("")}
+          ${m.todo ? `<span class="pill">${m.todo} action items</span>` : ""}
+          ${m.has_audio ? `<span class="pill" title="Audio auto-deletes">audio until ${day(m.audio_expires)}</span>` : ""}
+          ${m.topics.slice(0, 4).map(t => `<span class="pill">${esc(t)}</span>`).join("")}
+        </div>
+        ${m.gist ? `<div class="sub" style="margin-top:6px">${esc(m.gist)}</div>` : ""}
+        ${m.error ? `<div class="sub" style="color:var(--warn);margin-top:6px">${esc(m.error)}</div>` : ""}
+        ${m.hits?.length ? `<div class="hits">${m.hits.map(h => `<div>${ts(h.start)} · ${hl(h.text)}</div>`).join("")}</div>` : ""}
+      </a>`).join("") : `<div class="empty">${query ? "Nothing matches." : "No meetings yet. Drop a recording above, or run <code>mb record</code>."}</div>`}
+    </div>`;
+  const q = $("#q");
+  q.oninput = () => { clearTimeout(q._t); q._t = setTimeout(() => { query = q.value; meetingsPage().then(() => { const n = $("#q"); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }); }, 250); };
+  const drop = $("#drop");
+  drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
+  drop.ondragleave = () => drop.classList.remove("over");
+  drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); if (e.dataTransfer.files[0]) upload(e.dataTransfer.files[0]); };
+  $("#file").onchange = e => e.target.files[0] && upload(e.target.files[0]);
+  if (busy) poll = setTimeout(meetingsPage, 2500);
+}
+const hl = t => query ? esc(t).replaceAll(esc(query), `<mark>${esc(query)}</mark>`) : esc(t);
+
+async function upload(f) {
+  const fd = new FormData();
+  fd.append("file", f); fd.append("title", $("#utitle").value); fd.append("engine", $("#uengine").value);
+  fd.append("speakers", $("#uspk").value); fd.append("lang", $("#ulang").value);
+  toast("Uploading " + f.name + "…");
+  await api("/upload", {method: "POST", body: fd});
+  toast("Processing. Audio is compressed and auto-deleted after.");
+  meetingsPage();
+}
+
+// ---------------- one meeting ----------------
+let M = null, showAlt = false;
+async function meetingPage(id) {
+  M = await api("/meetings/" + id);
+  const spkIdx = Object.fromEntries(M.speakers.map((s, i) => [s.id, i]));
+  const spkName = Object.fromEntries(M.speakers.map(s => [s.id, s.label]));
+  const S = M.summary || {};
+  const hasAlt = M.segments.some(s => s.alt);
+  const busy = ["queued", "processing"].includes(M.status) || (M.job && !M.job.startsWith("error"));
+  $("#main").innerHTML = `
+    <a href="#/" class="sub" style="text-decoration:none">← Meetings</a>
+    <div class="row" style="justify-content:space-between;margin-top:6px">
+      <div style="min-width:0;flex:1">
+        <h2 contenteditable="true" id="title" spellcheck="false">${esc(M.title)}</h2>
+        <div class="sub">${day(M.created)} · ${ts(M.duration)} · ${M.segments.length} lines · ${esc(M.engine || "")}${M.lang ? " · " + esc(langName(M.lang)) : ""}
+          ${busy ? ` · <span class="pill acc">${esc(M.job || M.status)}…</span>` : ""}
+          ${M.error ? ` · <span class="pill warn" title="${esc(M.error)}">error</span>` : ""}</div>
+      </div>
+      <div class="row">
+        ${hasAlt ? `<button class="ghost" id="alt">${showAlt ? "Hide" : "Show"} SenseVoice</button>` : ""}
+        <button class="ghost" id="reason" title="Experimental: a local LLM reads the conversation and flags lines whose speaker looks wrong">Check speakers with AI</button>
+        <button class="ghost" id="resum">Rewrite notes</button>
+        <button class="ghost" id="copyall" title="Copy notes and transcript, with your names and fixes">Copy all</button>
+        <select id="export" title="Download with the names and fixes you've made">
+          <option value="">Export…</option>
+          <option value="pdf">PDF</option><option value="docx">Word (.docx)</option>
+          <option value="md">Markdown (.md)</option><option value="txt">Text (.txt)</option>
+          <option value="txt?notes=0">Transcript only (.txt)</option>
+        </select>
+        <button class="ghost" id="del" style="color:var(--warn)">Delete</button>
+      </div>
+    </div>
+    <div class="mgrid">
+      <div id="segs">${M.segments.map(s => `
+        <div class="seg" data-id="${s.id}" data-start="${s.start}" data-end="${s.end}">
+          <div class="ts" data-play="${s.start}">${ts(s.start)}</div>
+          <div class="who"><span class="spk"><span class="dot" style="background:${color(spkIdx[s.speaker_id])}"></span>
+            <select data-seg="${s.id}">${M.speakers.map(k => `<option value="${k.id}" ${k.id === s.speaker_id ? "selected" : ""}>${esc(k.label)}</option>`).join("")}</select></span></div>
+          <div class="txtwrap">
+            <div class="txt" contenteditable="true" spellcheck="false" data-edit="${s.id}">${esc(s.text)}</div>
+            ${showAlt && s.alt ? `<div class="alt">SenseVoice: ${esc(s.alt)}</div>` : ""}
+            <div class="meta">
+              ${s.overlap ? `<span class="pill" title="Two people talked at once here">overlap</span>` : ""}
+              ${s.clean && !s.edited ? `<span class="pill acc" title="ASR heard: ${esc(s.raw)}">AI fixed English</span>` : ""}
+              ${s.edited ? `<span class="pill" title="Original: ${esc(s.raw)}">edited</span>` : ""}
+              ${s.speaker_id !== s.acoustic_speaker_id ? `<span class="pill" title="Voice said: ${esc(spkName[s.acoustic_speaker_id] || "?")}">relabelled</span>` : ""}
+              ${s.hint ? `<span class="hint">AI thinks: ${esc(s.hint.label)} · ${esc(s.hint.why)}
+                <button data-hint="${s.id}" data-act="accept">yes</button><button data-hint="${s.id}" data-act="dismiss">no</button></span>` : ""}
+            </div>
+          </div>
+        </div>`).join("") || `<div class="empty">${busy ? "Processing…" : "No speech found."}</div>`}
+      </div>
+      <div class="side">
+        <div class="card speakers"><h3>Who spoke</h3>${M.speakers.map((k, i) => `
+          <div class="s"><span class="spk"><span class="dot" style="background:${color(i)}"></span>
+            <input value="${esc(k.label)}" data-spk="${k.id}" title="Type their name, press Enter. Their voice is remembered for next time."></span>
+            <span class="sub">${ts(k.seconds)}${k.match ? ` · ${Math.round(k.match * 100)}%` : ""}</span></div>`).join("")}
+          <div class="sub" style="margin-top:6px">Name someone once, they're recognised in future meetings. Same name twice merges them.</div>
+        </div>
+        ${S.summary ? `<div class="card"><h3>Summary</h3><div>${esc(S.summary)}</div></div>` : ""}
+        ${S.action_items?.length ? `<div class="card"><h3>Action items</h3><ul class="ai">${S.action_items.map((a, i) => `
+          <li class="${a.done ? "done" : ""}"><input type="checkbox" data-ai="${i}" ${a.done ? "checked" : ""}>
+          <span><b>${esc(a.who)}</b> ${esc(a.what)}${a.due ? ` <span class="sub">(${esc(a.due)})</span>` : ""}</span></li>`).join("")}</ul></div>` : ""}
+        ${S.decisions?.length ? `<div class="card"><h3>Decisions</h3><ul>${S.decisions.map(d => `<li>${esc(d)}</li>`).join("")}</ul></div>` : ""}
+        ${S.open_questions?.length ? `<div class="card"><h3>Open questions</h3><ul>${S.open_questions.map(d => `<li>${esc(d)}</li>`).join("")}</ul></div>` : ""}
+        <div class="sub">Click a line to fix it. English words you add are learned as vocab, and the clip is kept for fine-tuning.</div>
+      </div>
+    </div>
+    <div class="player">${M.has_audio
+      ? `<audio id="au" controls preload="metadata" src="/api/meetings/${M.id}/audio"></audio>
+         <span class="sub">auto-deletes ${day(M.audio_expires)}</span><button class="ghost" id="drop-audio">Delete audio now</button>`
+      : `<span class="sub">Audio deleted. Transcript and notes are kept.</span>`}</div>`;
+  bindMeeting();
+  if (busy) poll = setTimeout(() => meetingPage(id), 2500);
+}
+
+function bindMeeting() {
+  const au = $("#au");
+  document.querySelectorAll("[data-play]").forEach(el => el.onclick = () => { if (au) { au.currentTime = +el.dataset.play; au.play(); } });
+  if (au) au.ontimeupdate = () => {
+    const t = au.currentTime;
+    document.querySelectorAll(".seg").forEach(r => r.classList.toggle("active", t >= +r.dataset.start && t < +r.dataset.end));
+  };
+  document.querySelectorAll("[data-edit]").forEach(el => {
+    const orig = el.textContent;
+    el.onkeydown = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); el.blur(); } if (e.key === "Escape") { el.textContent = orig; el.blur(); } };
+    el.onblur = async () => {
+      if (el.textContent.trim() === orig.trim()) return;
+      const r = await post(`/segments/${el.dataset.edit}/text`, {text: el.textContent.trim()});
+      toast(r.learned.length ? "Saved. Learned: " + r.learned.join(", ") : "Saved");
+    };
+  });
+  document.querySelectorAll("select[data-seg]").forEach(el => el.onchange = async () => {
+    await post(`/segments/${el.dataset.seg}/speaker`, {speaker_id: +el.value}); meetingPage(M.id);
+  });
+  document.querySelectorAll("input[data-spk]").forEach(el => el.onkeydown = async e => {
+    if (e.key !== "Enter" || !el.value.trim()) return;
+    await post(`/speakers/${el.dataset.spk}/name`, {name: el.value.trim()});
+    toast(`Remembered ${el.value.trim()}'s voice`); meetingPage(M.id);
+  });
+  document.querySelectorAll("[data-hint]").forEach(el => el.onclick = async () => {
+    await post(`/segments/${el.dataset.hint}/hint/${el.dataset.act}`); meetingPage(M.id);
+  });
+  document.querySelectorAll("[data-ai]").forEach(el => el.onchange = () => post(`/meetings/${M.id}/actions/${el.dataset.ai}`, {done: el.checked}).then(() => meetingPage(M.id)));
+  const title = $("#title");
+  title.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); title.blur(); } };
+  title.onblur = () => title.textContent.trim() !== M.title && post(`/meetings/${M.id}/title`, {title: title.textContent.trim()}).then(() => toast("Renamed"));
+  const b = (id, fn) => { const el = $("#" + id); if (el) el.onclick = fn; };
+  b("alt", () => { showAlt = !showAlt; meetingPage(M.id); });
+  b("resum", () => post(`/meetings/${M.id}/summarize`).then(() => { toast("Rewriting notes…"); meetingPage(M.id); }).catch(e => toast(e.message)));
+  b("reason", () => post(`/meetings/${M.id}/reason`).then(() => { toast("Reading the conversation…"); meetingPage(M.id); }).catch(e => toast(e.message)));
+  b("drop-audio", async () => { if (confirm("Delete this recording's audio now? The transcript stays.")) { await post(`/meetings/${M.id}/drop-audio`); meetingPage(M.id); } });
+  b("copyall", async () => {
+    const url = `/api/meetings/${M.id}/export/txt`;
+    try {
+      if (native) {  // the Mac app writes the clipboard itself, WebKit blocks it after an await
+        await ask("copy", {text: await (await fetch(url)).text()});
+      } else if (window.ClipboardItem) {  // keeps the click's permission while the text loads
+        await navigator.clipboard.write([new ClipboardItem({"text/plain": fetch(url).then(r => r.blob())})]);
+      } else {
+        await navigator.clipboard.writeText(await (await fetch(url)).text());
+      }
+      toast("Copied. Paste it anywhere.");
+    } catch (e) { toast("Couldn't copy: " + e.message); }
+  });
+  const ex = $("#export");
+  if (ex) ex.onchange = () => {
+    if (!ex.value) return;
+    const a = document.createElement("a");
+    a.href = `/api/meetings/${M.id}/export/${ex.value}`; a.download = "";
+    document.body.appendChild(a); a.click(); a.remove();
+    toast("Exporting… it lands in Downloads"); ex.value = "";
+  };
+  b("del", async () => { if (confirm("Delete this whole meeting, transcript and notes included?")) { await api(`/meetings/${M.id}`, {method: "DELETE"}); location.hash = "#/"; } });
+}
+
+// ---------------- action items ----------------
+async function actionsPage() {
+  const items = await api("/actions");
+  const open = items.filter(a => !a.done), done = items.filter(a => a.done);
+  const byWho = {};
+  open.forEach(a => (byWho[a.who || "?"] ??= []).push(a));
+  const row = a => `<li class="${a.done ? "done" : ""}"><input type="checkbox" data-m="${a.meeting_id}" data-i="${a.i}" ${a.done ? "checked" : ""}>
+    <span>${esc(a.what)}${a.due ? ` <span class="sub">(${esc(a.due)})</span>` : ""} <a class="sub" href="#/m/${a.meeting_id}">${esc(a.meeting)} · ${day(a.created)}</a></span></li>`;
+  $("#main").innerHTML = `<h2>Action items</h2><div class="sub">${open.length} open across all meetings</div>
+    <div class="list">${Object.entries(byWho).map(([who, xs]) => `<div class="card"><h3 style="margin:0 0 8px">${esc(who)}</h3><ul class="ai">${xs.map(row).join("")}</ul></div>`).join("") || `<div class="empty">Nothing open.</div>`}
+    ${done.length ? `<details class="card"><summary class="sub">${done.length} done</summary><ul class="ai" style="margin-top:8px">${done.map(row).join("")}</ul></details>` : ""}</div>`;
+  document.querySelectorAll("[data-m]").forEach(el => el.onchange = () => post(`/meetings/${el.dataset.m}/actions/${el.dataset.i}`, {done: el.checked}).then(actionsPage));
+}
+
+// ---------------- people ----------------
+async function peoplePage() {
+  const ps = await api("/people");
+  $("#main").innerHTML = `<h2>People</h2>
+    <div class="sub">Voiceprints are a few KB of numbers, not audio. Each time you name someone in a meeting, their voiceprint gets better.</div>
+    <div class="card" style="margin-top:18px"><div class="row">
+      <b>Enroll a voice</b><input id="pname" placeholder="Name">
+      <input type="file" id="pfile" accept="audio/*,video/*">
+      <button class="primary" id="penroll">Enroll</button>
+      <span class="sub">10 to 30 seconds of just them talking works best. A voice memo is fine.</span></div></div>
+    <div class="list">${ps.length ? `<div class="card"><table>${ps.map((p, i) => `<tr>
+      <td><span class="spk"><span class="dot" style="background:${color(i)}"></span>${esc(p.name)}</span></td>
+      <td class="sub">${p.has_voice ? `voiceprint from ${p.samples} samples` : "no voiceprint yet"}</td>
+      <td class="sub">${p.meetings} meetings · ${ts(p.seconds)} talking</td>
+      <td style="text-align:right"><button class="ghost" data-del="${p.id}">forget</button></td></tr>`).join("")}</table></div>`
+      : `<div class="empty">Nobody yet. Enroll someone, or name a speaker inside any meeting.</div>`}</div>`;
+  $("#penroll").onclick = async () => {
+    const f = $("#pfile").files[0], n = $("#pname").value.trim();
+    if (!f || !n) return toast("Need a name and a clip");
+    const fd = new FormData(); fd.append("name", n); fd.append("file", f);
+    try { const r = await api("/people/enroll", {method: "POST", body: fd}); toast(`Enrolled ${n} (${r.utterances} utterances)`); peoplePage(); }
+    catch (e) { toast(e.message); }
+  };
+  document.querySelectorAll("[data-del]").forEach(el => el.onclick = async () => {
+    if (confirm("Forget this person's voiceprint?")) { await api("/people/" + el.dataset.del, {method: "DELETE"}); peoplePage(); }
+  });
+}
+
+// ---------------- vocab ----------------
+async function vocabPage() {
+  const vs = await api("/vocab");
+  $("#main").innerHTML = `<h2>Vocab</h2>
+    <div class="sub">Words you mix into Cantonese. They prime Whisper and guide the cleanup pass. Fixing a line in a transcript adds new English words here automatically.</div>
+    <div class="card" style="margin-top:18px"><div class="row">
+      <input id="vterm" placeholder="Term, e.g. TestFlight">
+      <input id="vmis" placeholder="Usually misheard as (optional), e.g. 測試飛">
+      <button class="primary" id="vadd">Add</button></div></div>
+    <div class="list"><div class="card">${vs.length ? `<div class="row">${vs.map(v => `
+      <span class="pill ${v.source === "learned" ? "acc" : ""}" title="${v.source}${v.misheard ? " · misheard as " + esc(v.misheard) : ""}">
+      ${esc(v.term)}${v.misheard ? ` ← ${esc(v.misheard)}` : ""} <a href="#" data-vdel="${v.id}" style="text-decoration:none;opacity:.6">×</a></span>`).join("")}</div>`
+      : `<div class="empty">No vocab yet. Add the names, products and jargon you use most.</div>`}</div></div>`;
+  const add = async () => { const t = $("#vterm").value.trim(); if (!t) return;
+    await post("/vocab", {term: t, misheard: $("#vmis").value.trim() || null}); vocabPage(); };
+  $("#vadd").onclick = add;
+  $("#vterm").onkeydown = $("#vmis").onkeydown = e => e.key === "Enter" && add();
+  document.querySelectorAll("[data-vdel]").forEach(el => el.onclick = async e => { e.preventDefault(); await api("/vocab/" + el.dataset.vdel, {method: "DELETE"}); vocabPage(); });
+}
+
+// ---------------- storage ----------------
+async function storagePage() {
+  const s = await api("/stats");
+  $("#main").innerHTML = `<h2>Settings & storage</h2>
+    <div class="sub">Audio is compressed to Opus (about 7 MB per hour) and deleted after ${s.retention_days} days. Only clips you corrected are kept, for fine-tuning.</div>
+    <div class="stats">
+      <div class="card"><b>${s.meetings}</b><span class="sub">meetings · ${s.hours.toFixed(1)} h</span></div>
+      <div class="card"><b>${s.audio_mb.toFixed(1)} MB</b><span class="sub">audio waiting to expire</span></div>
+      <div class="card"><b>${s.train_mb.toFixed(1)} MB</b><span class="sub">${s.training_clips} training clips</span></div>
+      <div class="card"><b>${s.db_mb.toFixed(1)} MB</b><span class="sub">transcripts + voiceprints</span></div>
+      <div class="card"><b>${s.corrections}</b><span class="sub">corrections logged</span></div>
+      <div class="card"><b style="font-size:15px">${esc(s.llm || "off")}</b><span class="sub">local LLM</span></div>
+    </div>
+    <div class="card" style="margin-top:14px"><div class="row"><b>Meeting language</b>
+      <select id="deflang">${langOptions(LANGS.default)}</select>
+      <span class="sub">Used for Voice Memos and uploads unless you pick another. Voice recognition works in any language.</span></div></div>
+    <div class="card" style="margin-top:14px"><div class="sub">Markdown notes for gbrain: <code>${esc(s.notes_dir)}</code></div>
+      <div class="sub" style="margin-top:6px">Shrink a lecture video: <code>mb compress lecture.mp4</code> (add <code>--fast</code> for the hardware encoder)</div>
+      <div class="sub" style="margin-top:6px">Export fine-tuning pairs: <code>mb export-finetune pairs.jsonl</code></div></div>`;
+  $("#deflang").onchange = async e => {
+    await post("/langs/default", {lang: e.target.value}); LANGS = null; await langs();
+    toast("New meetings will use " + langName(e.target.value));
+  };
+}
+
+api("/stats").then(s => $("#foot").textContent = `${s.meetings} meetings · LLM ${s.llm || "off"}`).catch(() => {});
+route();
+</script>
+</body>
+</html>
