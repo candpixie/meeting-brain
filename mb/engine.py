@@ -275,25 +275,46 @@ def whisper(a, utts, vocab, preset, field_name="text"):
         detected = out.get("result", {}).get("language") or preset["whisper"]
     for u in utts:
         setattr(u, field_name, "")
+    spans = []
     for s in segs:
         t0, t1 = s["offsets"]["from"] / 1000, s["offsets"]["to"] / 1000
         mid = (t0 + t1) / 2
         txt = convert(s["text"].strip(), preset)
         if not txt or not utts:
             continue
+        spans.append((t0, t1))
         u = min(utts, key=lambda u: 0 if u.start <= mid <= u.end else min(abs(mid - u.start), abs(mid - u.end)))
         setattr(u, field_name, (getattr(u, field_name) + " " + txt).strip())
     if field_name == "text":
         for u in utts:
             u.lang = detected
-    _fill_gaps(utts, preset, field_name)
+    _fill_gaps(utts, preset, field_name, spans)
 
 
-def _fill_gaps(utts, preset, field_name):
+def _covered(u, spans):
+    # share of the utterance that some first-pass segment already spoke for
+    hit = sum(max(0.0, min(u.end, t1) - max(u.start, t0)) for t0, t1 in spans)
+    return hit / max(u.dur, 1e-6)
+
+
+def _allowed_langs(preset):
+    w = preset["whisper"]
+    if w == "auto":
+        return None
+    langs = {w, "en"}
+    if w in ("yue", "zh"):
+        langs |= {"yue", "zh"}
+    return langs
+
+
+def _fill_gaps(utts, preset, field_name, spans=()):
     """Whisper on the whole file sometimes skips a sentence in a second language outright (an English
     reply in a Spanish meeting vanished in testing). Redo just those utterances, language auto-detected,
     in one run so the model loads once."""
-    gaps = [u for u in utts if not getattr(u, field_name) and u.dur >= 1.0]
+    # Only audio the first pass never covered. An empty utterance whose words went to its neighbour is not
+    # a gap, and redoing it duplicates the line. Results in other languages are hallucinations on short
+    # clips (a Vietnamese YouTube outro turned up in testing), so they're dropped.
+    gaps = [u for u in utts if not getattr(u, field_name) and u.dur >= 1.0 and _covered(u, spans) < 0.3]
     if not gaps:
         return
     with tempfile.TemporaryDirectory() as td:
@@ -310,7 +331,11 @@ def _fill_gaps(utts, preset, field_name):
                 continue
             out = json.loads(j.read_text())
             txt = " ".join(x["text"].strip() for x in out["transcription"]).strip()
+            lang = out.get("result", {}).get("language")
+            ok = _allowed_langs(preset)
+            if ok is not None and lang not in ok:
+                continue
             if txt:
                 setattr(u, field_name, convert(txt, preset))
                 if field_name == "text":
-                    u.lang = out.get("result", {}).get("language") or u.lang
+                    u.lang = lang or u.lang
