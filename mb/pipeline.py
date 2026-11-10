@@ -109,9 +109,15 @@ def _run(mid, path, engine_name, num_speakers, use_llm, keep_audio_days, preset)
     if use_llm:
         if config.REASON_SPEAKERS:
             log("LLM: reasoning about speaker labels (experimental)")
-            reason_speakers(mid)
+            try:
+                reason_speakers(mid)
+            except Exception as e:
+                log(f"speaker reasoning skipped: {e!r}")
         log("LLM: writing notes")
-        summarize(mid)
+        try:
+            summarize(mid)
+        except Exception as e:  # notes are optional, the transcript is already saved
+            log(f"notes skipped: {e!r}. Press Rewrite notes to try again")
 
     log("compressing audio")
     days = config.RETENTION_DAYS if keep_audio_days is None else keep_audio_days

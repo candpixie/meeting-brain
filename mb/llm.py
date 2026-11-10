@@ -18,13 +18,14 @@ def model():
     return _model or config.OLLAMA_MODEL
 
 
-def _chat(system, prompt, num_ctx=16384, temperature=0.1):
+def _chat(system, prompt, num_ctx=16384, temperature=0.1, timeout=300, num_predict=3000):
+    # num_predict caps a model stuck repeating itself, which is what hung a real meeting for 10 minutes
     body = {"model": model(), "stream": False, "format": "json", "keep_alive": "20s",
-            "options": {"temperature": temperature, "num_ctx": num_ctx},
+            "options": {"temperature": temperature, "num_ctx": num_ctx, "num_predict": num_predict},
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}]}
     req = urllib.request.Request(f"{config.OLLAMA_URL}/api/chat", data=json.dumps(body).encode(),
                                  headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=600) as r:
+    with urllib.request.urlopen(req, timeout=timeout) as r:
         txt = json.loads(r.read())["message"]["content"]
     try:
         return json.loads(txt)
@@ -75,7 +76,11 @@ def cleanup(lines, vocab, people, system=None):
             continue
         prompt = (f"常用詞彙（會議入面成日出現）：{terms or '（未有）'}\n"
                   f"以前聽錯過：{hints or '（未有）'}\n\n逐字稿：\n{numbered}")
-        res = _chat(system or CLEAN_SYS, prompt)
+        try:
+            res = _chat(system or CLEAN_SYS, prompt)
+        except Exception as e:  # a stuck or crashed model costs this batch its fixes, not the meeting
+            print(f"[mb] English fixes skipped for lines {b}-{b + len(chunk) - 1}: {e!r}", flush=True)
+            continue
         for item in res.get("lines", []):
             try:
                 i, t = int(item["i"]), str(item["text"]).strip()
@@ -141,8 +146,8 @@ def summary(transcript, vocab=(), language=""):
     if vocab:
         transcript = "Known terms: " + ", ".join(v["term"] for v in vocab) + "\n\n" + transcript
     if len(transcript) <= 14000:
-        return _chat(SUM_SYS, transcript, num_ctx=24576, temperature=0.2)
+        return _chat(SUM_SYS, transcript, num_ctx=24576, temperature=0.2, timeout=600)
     parts = [transcript[i:i + 12000] for i in range(0, len(transcript), 12000)]
-    partials = [_chat(SUM_SYS, f"(Part {n + 1} of {len(parts)})\n{p}", num_ctx=24576) for n, p in enumerate(parts)]
+    partials = [_chat(SUM_SYS, f"(Part {n + 1} of {len(parts)})\n{p}", num_ctx=24576, timeout=600) for n, p in enumerate(parts)]
     return _chat(SUM_SYS, "Merge these partial notes of one meeting into a single set of notes:\n" +
                  json.dumps(partials, ensure_ascii=False), num_ctx=24576, temperature=0.2)

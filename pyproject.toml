@@ -1,6 +1,6 @@
 [project]
 name = "meeting-brain"
-version = "0.1.1"
+version = "0.1.2"
 description = "Private meeting brain: who said what, Cantonese/English, local only"
 authors = [
     { name = "Candy Xie", email = "154905277+candpixie@users.noreply.github.com" }
